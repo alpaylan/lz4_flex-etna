@@ -1,6 +1,7 @@
 name = "lz4_flex"
 description = "Pure Rust LZ4 block + frame compression — ETNA workload."
 language = "rust"
+strategies = ["proptest", "quickcheck", "crabcheck", "hegel"]
 crate = "lz4_flex"
 base_commit = "a5130300bf7b9f44c3a3148b199a5cb73ed42c1f"
 

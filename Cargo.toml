@@ -54,8 +54,8 @@ twox-hash = { version = "2.0.0", default-features = false, features = ["xxhash32
 # the etna module. Placed in main [dependencies] so the bin target links
 # against them; they're only referenced from the workload harness.
 proptest = "1.0"
-quickcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/quickcheck-rs", features = ["etna"] }
-crabcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/crabcheck", features = ["profiling"] }
+quickcheck = { git = "https://github.com/alpaylan/quickcheck.git", branch = "master", features = ["etna"] }
+crabcheck = { git = "https://github.com/alpaylan/crabcheck.git", branch = "main", features = ["profiling"] }
 rand = { version = "0.9", default-features = false, features = ["os_rng", "small_rng", "thread_rng"] }
 hegeltest = "0.3.7"
 
