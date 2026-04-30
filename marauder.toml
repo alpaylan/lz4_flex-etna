@@ -1,0 +1,12 @@
+languages = ["Rust"]
+ignore = [
+  "benches/**",
+  "examples/**",
+  "fuzz/**",
+  "miri_tests/**",
+  "lz4_bin/**",
+  "target/**",
+  "patches/**",
+]
+use_gitignore = false
+custom_languages = []

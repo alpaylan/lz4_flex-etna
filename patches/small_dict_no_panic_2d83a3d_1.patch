@@ -1,0 +1,19 @@
+diff --git a/src/block/compress.rs b/src/block/compress.rs
+--- a/src/block/compress.rs
++++ b/src/block/compress.rs
+@@ -619,13 +619,11 @@ pub fn compress_into_with_dict(
+ fn compress_into_vec_with_dict<const USE_DICT: bool>(
+     input: &[u8],
+     prepend_size: bool,
+-    mut dict_data: &[u8],
++    dict_data: &[u8],
+ ) -> Vec<u8> {
+     let prepend_size_num_bytes = if prepend_size { 4 } else { 0 };
+     let max_compressed_size = get_maximum_output_size(input.len()) + prepend_size_num_bytes;
+-    if dict_data.len() <= 3 {
+-        dict_data = b"";
+-    }
++
+     #[cfg(feature = "safe-encode")]
+     let mut compressed = {
+         let mut compressed: Vec<u8> = vec![0u8; max_compressed_size];

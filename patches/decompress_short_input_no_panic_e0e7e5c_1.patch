@@ -1,0 +1,36 @@
+diff --git a/src/block/decompress.rs b/src/block/decompress.rs
+--- a/src/block/decompress.rs
++++ b/src/block/decompress.rs
+@@ -494,8 +494,12 @@ pub fn decompress_into(input: &[u8], output: &mut Vec<u8>) -> Result<(), Decompr
+ /// little endian. Can be used in conjunction with `compress_prepend_size`
+ #[inline]
+ pub fn decompress_size_prepended(input: &[u8]) -> Result<Vec<u8>, DecompressError> {
+-    let (uncompressed_size, input) = super::uncompressed_size(input)?;
+-    decompress(input, uncompressed_size)
++    let uncompressed_size = (input[0] as usize)
++        | (input[1] as usize) << 8
++        | (input[2] as usize) << 16
++        | (input[3] as usize) << 24;
++    let rest = &input[4..];
++    decompress(rest, uncompressed_size)
+ }
+
+ /// Decompress all bytes of `input` into a new vec.
+diff --git a/src/block/decompress_safe.rs b/src/block/decompress_safe.rs
+--- a/src/block/decompress_safe.rs
++++ b/src/block/decompress_safe.rs
+@@ -340,8 +340,12 @@ pub fn decompress_into(input: &[u8], output: &mut [u8]) -> Result<usize, Decompr
+ /// little endian. Can be used in conjunction with `compress_prepend_size`
+ #[inline]
+ pub fn decompress_size_prepended(input: &[u8]) -> Result<Vec<u8>, DecompressError> {
+-    let (uncompressed_size, input) = super::uncompressed_size(input)?;
+-    decompress(input, uncompressed_size)
++    let uncompressed_size = (input[0] as usize)
++        | (input[1] as usize) << 8
++        | (input[2] as usize) << 16
++        | (input[3] as usize) << 24;
++    let rest = &input[4..];
++    decompress(rest, uncompressed_size)
+ }
+
+ /// Decompress all bytes of `input` into a new vec.

@@ -1,0 +1,119 @@
+name = "lz4_flex"
+description = "Pure Rust LZ4 block + frame compression — ETNA workload."
+language = "rust"
+crate = "lz4_flex"
+base_commit = "a5130300bf7b9f44c3a3148b199a5cb73ed42c1f"
+
+[[tasks]]
+mutations = ["dont_panic_on_drop_44e14b1_1"]
+
+[tasks.source]
+repo = "https://github.com/PSeitz/lz4_flex"
+commits = ["44e14b15e51daaf010a554be07ee60ea95522c8d"]
+commit_subjects = ["Don't panic on drop"]
+prs = [98]
+summary = "`AutoFinishEncoder::drop` called `panic!` when its implicit `try_finish()` returned an error from the underlying writer. Dropping the encoder while a writer was failing therefore aborted the program — an unrecoverable surprise for callers who chose `auto_finish` precisely so they wouldn't have to handle finish errors. The fix swallows the result with `let _ = encoder.try_finish();`."
+
+[tasks.injection]
+kind = "marauders"
+files = ["src/frame/compress.rs"]
+locations = [{ file = "src/frame/compress.rs", line = 425, symbol = "<AutoFinishEncoder as Drop>::drop" }]
+
+[tasks.bug]
+short_name = "dont_panic_on_drop"
+invariant = "`AutoFinishEncoder<W>` dropped at end of scope must never panic, regardless of whether the underlying writer's `flush`/`write` returned an error during the implicit `try_finish()`."
+how_triggered = "The buggy `Drop` impl pattern-matches `try_finish()`'s `Err(err)` arm and calls `panic!(\"Error when flushing frame on drop {err:?}\")`. With a writer that returns `Err(io::ErrorKind::BrokenPipe)` the buggy drop unconditionally aborts the test thread; the fix discards the result so drop becomes total."
+
+[[tasks.tasks]]
+property = "DontPanicOnDrop"
+witnesses = [
+  { test_fn = "witness_dont_panic_on_drop_case_small_payload" },
+  { test_fn = "witness_dont_panic_on_drop_case_empty_payload" },
+  { test_fn = "witness_dont_panic_on_drop_case_repeated_bytes" },
+]
+
+[[tasks]]
+mutations = ["small_dict_no_panic_2d83a3d_1"]
+
+[tasks.source]
+repo = "https://github.com/PSeitz/lz4_flex"
+commits = ["2d83a3da281266aeb2928272001043ecc04a8fe4"]
+commit_subjects = ["Fix: Small dict leads to panic"]
+issues = [131]
+summary = "`compress_into_vec_with_dict` forwarded any caller-supplied dictionary into `compress_internal` even when its length was less than `MINMATCH` (4 bytes). The hot loop then sliced past the end of the dict (`get_hash_at` reads `size_of::<usize>()` bytes), panicking with 'range end index … out of range for slice of length …'. The fix special-cases dicts shorter than 4 bytes and replaces them with an empty slice."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/block/compress.rs"]
+locations = [{ file = "src/block/compress.rs", line = 626, symbol = "compress_into_vec_with_dict" }]
+patch = "patches/small_dict_no_panic_2d83a3d_1.patch"
+
+[tasks.bug]
+short_name = "small_dict_no_panic"
+invariant = "`compress_prepend_size_with_dict(input, dict)` followed by `decompress_size_prepended_with_dict(.., dict)` must roundtrip `input` exactly and must not panic, regardless of `dict.len()` — including the boundary `dict.len() < 4`."
+how_triggered = "The buggy implementation drops the `mut dict_data: &[u8]` and the `if dict_data.len() <= 3 { dict_data = b\"\"; }` guard. `compress_internal` then enters the hot match-search loop with a dict shorter than `size_of::<usize>()` bytes, panicking inside `get_hash_at`'s slice index expression on the very first probe."
+
+[[tasks.tasks]]
+property = "SmallDictNoPanic"
+witnesses = [
+  { test_fn = "witness_small_dict_no_panic_case_three_byte_dict" },
+  { test_fn = "witness_small_dict_no_panic_case_two_byte_dict" },
+  { test_fn = "witness_small_dict_no_panic_case_one_byte_dict" },
+]
+
+[[tasks]]
+mutations = ["decompress_short_input_no_panic_e0e7e5c_1"]
+
+[tasks.source]
+repo = "https://github.com/PSeitz/lz4_flex"
+commits = ["e0e7e5c223441c7739c9a140c1e62db0399621ba"]
+commit_subjects = ["Don't panic passing an empty buffer to decompress_size_prepended"]
+prs = [8]
+summary = "`decompress_size_prepended` directly indexed `input[0..=3]` to recover the prepended uncompressed size. Calling it with an input shorter than 4 bytes (in particular the empty slice) panicked with 'index out of bounds: the len is 0 but the index is 0' before any decompression code ran. The fix routes the read through a `super::uncompressed_size` helper that returns `Err(ExpectedAnotherByte)` when the input is too short."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/block/decompress.rs", "src/block/decompress_safe.rs"]
+locations = [
+  { file = "src/block/decompress.rs", line = 496, symbol = "decompress_size_prepended" },
+  { file = "src/block/decompress_safe.rs", line = 342, symbol = "decompress_size_prepended" },
+]
+patch = "patches/decompress_short_input_no_panic_e0e7e5c_1.patch"
+
+[tasks.bug]
+short_name = "decompress_short_input_no_panic"
+invariant = "`decompress_size_prepended(input)` must return `Err(_)` (never panic) when `input.len() < 4`. The first 4 bytes are the prepended little-endian uncompressed length; a buffer shorter than that cannot encode a valid frame and must be reported as `ExpectedAnotherByte`."
+how_triggered = "The buggy code reads `input[0]`, `input[1]`, `input[2]`, `input[3]` directly to decode the size, then slices `&input[4..]` for the body. With `input.len() < 4` the very first index out-of-bounds panics; with `input.len() == 4` only the slice survives but trivial cases like the empty input always abort."
+
+[[tasks.tasks]]
+property = "DecompressShortInputNoPanic"
+witnesses = [
+  { test_fn = "witness_decompress_short_input_no_panic_case_empty" },
+  { test_fn = "witness_decompress_short_input_no_panic_case_one_byte" },
+  { test_fn = "witness_decompress_short_input_no_panic_case_three_bytes" },
+]
+
+# ---------------------------------------------------------------------------
+# Dropped candidates — recorded so the next mining run knows these were
+# considered and rejected for the stated terminal reason.
+# ---------------------------------------------------------------------------
+
+[[dropped]]
+commit = "b078f7c"
+subject = "Fix: Out of bounds write"
+reason = "OOB write only observable under MemorySanitizer/AddressSanitizer; the over-allocated output Vec absorbs the buggy write under default cargo test, so no panic, no detectable behavior change without sanitizer infrastructure."
+
+[[dropped]]
+commit = "055502e"
+subject = "fix handling of invalid match offsets during decompression"
+reason = "Buggy safe-decode path silently produces wrong output (offset clamping + uninitialised-byte exposure) instead of erroring. Detecting requires either a known-good reference decoder for byte-for-byte comparison or MemorySanitizer; both are out of reach for the per-variant witness contract here."
+
+[[dropped]]
+commit = "2991a09"
+subject = "fix get_maximum_output_size overflow on 32-bit targets"
+reason = "Bug only triggers on 32-bit targets (input_len * 110 overflows usize when usize is 32-bit). x86_64 host of the etna workload cannot reproduce it."
+
+[[dropped]]
+commit = "c1483c4"
+subject = "fix the issue (read_integer u32 -> usize)"
+reason = "The buggy u32 accumulator only overflows when a single LZ4 literal/match length encoding spans more than 2^32 bytes, which the upstream block format caps below 64KB per block — unreachable in practice."

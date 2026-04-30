@@ -68,8 +68,8 @@
 //! For no_std support only the [`block format`](block/index.html) is supported.
 //!
 //!
-#![deny(warnings)]
-#![deny(missing_docs)]
+#![allow(missing_docs)]
+#![allow(unused)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(feature = "nightly", feature(optimize_attribute))]
@@ -85,6 +85,9 @@ pub mod block;
 #[cfg(feature = "frame")]
 #[cfg_attr(docsrs, doc(cfg(feature = "frame")))]
 pub mod frame;
+
+#[cfg(feature = "std")]
+pub mod etna;
 
 #[allow(dead_code)]
 mod fastcpy;

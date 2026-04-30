@@ -1,0 +1,39 @@
+{"ts":"2026-04-30T06:23:01Z","stage":"discover","event":"start"}
+{"ts":"2026-04-30T06:23:01Z","stage":"discover","event":"candidate","hash":"44e14b1","subject":"Dont panic on drop","files":1,"hunks":1}
+{"ts":"2026-04-30T06:23:01Z","stage":"discover","event":"candidate","hash":"2d83a3d","subject":"Small dict leads to panic","files":1,"hunks":1}
+{"ts":"2026-04-30T06:23:01Z","stage":"discover","event":"candidate","hash":"e0e7e5c","subject":"Dont panic on empty buffer to decompress_size_prepended","files":3,"hunks":4}
+{"ts":"2026-04-30T06:23:01Z","stage":"discover","event":"candidate","hash":"b078f7c","subject":"OOB write corrupted data with dict","files":2,"hunks":2}
+{"ts":"2026-04-30T06:23:01Z","stage":"discover","event":"candidate","hash":"055502e","subject":"invalid match offsets during decompression","files":4,"hunks":10}
+{"ts":"2026-04-30T06:23:01Z","stage":"discover","event":"done","commits_scanned":546,"fix_commits":5}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"start","total_candidates":5}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_start","name":"dont_panic_on_drop_44e14b1_1","i":1,"of":5}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_detected","name":"dont_panic_on_drop_44e14b1_1","i":1,"of":5,"injection":"marauders"}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_committed","name":"dont_panic_on_drop_44e14b1_1","i":1,"of":5,"injection":"marauders"}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_start","name":"small_dict_no_panic_2d83a3d_1","i":2,"of":5}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_detected","name":"small_dict_no_panic_2d83a3d_1","i":2,"of":5,"injection":"patch"}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_committed","name":"small_dict_no_panic_2d83a3d_1","i":2,"of":5,"injection":"patch"}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_start","name":"decompress_short_input_no_panic_e0e7e5c_1","i":3,"of":5}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_detected","name":"decompress_short_input_no_panic_e0e7e5c_1","i":3,"of":5,"injection":"patch"}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_committed","name":"decompress_short_input_no_panic_e0e7e5c_1","i":3,"of":5,"injection":"patch"}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_skipped","name":"decompress_dict_no_oob_b078f7c_1","i":4,"of":5,"reason":"OOB write only observable under MSAN/ASAN"}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"variant_skipped","name":"invalid_match_offset_055502e_1","i":5,"of":5,"reason":"silent wrong-output without sanitizer; cannot deterministically detect"}
+{"ts":"2026-04-30T06:35:55Z","stage":"atomize","event":"done","committed":3,"skipped":2}
+{"ts":"2026-04-30T06:35:55Z","stage":"runner","event":"start"}
+{"ts":"2026-04-30T06:35:55Z","stage":"runner","event":"compiled"}
+{"ts":"2026-04-30T06:35:55Z","stage":"runner","event":"framework_passing","framework":"etna","property":"All"}
+{"ts":"2026-04-30T06:35:55Z","stage":"runner","event":"framework_passing","framework":"proptest","property":"All"}
+{"ts":"2026-04-30T06:35:55Z","stage":"runner","event":"framework_passing","framework":"quickcheck","property":"All"}
+{"ts":"2026-04-30T06:35:55Z","stage":"runner","event":"framework_passing","framework":"crabcheck","property":"All"}
+{"ts":"2026-04-30T06:35:55Z","stage":"runner","event":"framework_passing","framework":"hegel","property":"All"}
+{"ts":"2026-04-30T06:35:55Z","stage":"runner","event":"done"}
+{"ts":"2026-04-30T06:36:13Z","stage":"document","event":"start"}
+{"ts":"2026-04-30T06:36:13Z","stage":"document","event":"bugs_written","variants":3}
+{"ts":"2026-04-30T06:36:13Z","stage":"document","event":"tasks_written","tasks":3}
+{"ts":"2026-04-30T06:36:13Z","stage":"document","event":"done"}
+{"ts":"2026-04-30T06:36:13Z","stage":"validate","event":"start"}
+{"ts":"2026-04-30T06:36:13Z","stage":"validate","event":"check_passed","check":"A. etna workload check"}
+{"ts":"2026-04-30T06:38:05Z","stage":"validate","event":"check_passed","check":"B1. base builds and tests"}
+{"ts":"2026-04-30T06:38:05Z","stage":"validate","event":"check_passed","check":"B2. per-variant detection"}
+{"ts":"2026-04-30T06:38:05Z","stage":"validate","event":"check_passed","check":"B3. etna binary end-to-end"}
+{"ts":"2026-04-30T06:38:05Z","stage":"validate","event":"check_passed","check":"B4. adapter-body reality check"}
+{"ts":"2026-04-30T06:38:05Z","stage":"validate","event":"all_checks_passed"}
