@@ -16,7 +16,8 @@ prs = [98]
 summary = "`AutoFinishEncoder::drop` called `panic!` when its implicit `try_finish()` returned an error from the underlying writer. Dropping the encoder while a writer was failing therefore aborted the program — an unrecoverable surprise for callers who chose `auto_finish` precisely so they wouldn't have to handle finish errors. The fix swallows the result with `let _ = encoder.try_finish();`."
 
 [tasks.injection]
-kind = "marauders"
+kind = "patch"
+patch = "patches/dont_panic_on_drop_44e14b1_1.patch"
 files = ["src/frame/compress.rs"]
 locations = [{ file = "src/frame/compress.rs", line = 425, symbol = "<AutoFinishEncoder as Drop>::drop" }]
 
