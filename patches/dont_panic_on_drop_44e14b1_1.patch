@@ -1,0 +1,15 @@
+# marauders: name=dont_panic_on_drop tags=[drop]
+diff --git a/src/frame/compress.rs b/src/frame/compress.rs
+--- a/src/frame/compress.rs
++++ b/src/frame/compress.rs
+@@ -422,7 +422,9 @@
+ impl<W: io::Write> Drop for AutoFinishEncoder<W> {
+     fn drop(&mut self) {
+         if let Some(mut encoder) = self.encoder.take() {
+-            let _ = encoder.try_finish();
++            if let Err(err) = encoder.try_finish() {
++                panic!("Error when flushing frame on drop {:?} ", err);
++            }
+         }
+     }
+ }
