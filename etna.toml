@@ -22,16 +22,16 @@ files = ["src/frame/compress.rs"]
 locations = [{ file = "src/frame/compress.rs", line = 425, symbol = "<AutoFinishEncoder as Drop>::drop" }]
 
 [tasks.bug]
-short_name = "dont_panic_on_drop"
-invariant = "`AutoFinishEncoder<W>` dropped at end of scope must never panic, regardless of whether the underlying writer's `flush`/`write` returned an error during the implicit `try_finish()`."
-how_triggered = "The buggy `Drop` impl pattern-matches `try_finish()`'s `Err(err)` arm and calls `panic!(\"Error when flushing frame on drop {err:?}\")`. With a writer that returns `Err(io::ErrorKind::BrokenPipe)` the buggy drop unconditionally aborts the test thread; the fix discards the result so drop becomes total."
+short_name = "drop_matches_manual_finish"
+invariant = "`AutoFinishEncoder<W>::drop` is observationally equivalent to calling `try_finish()` directly and discarding the `Result`, as the upstream docstring on `FrameEncoder::auto_finish()` mandates (\"Errors on drop get silently ignored\"). Concretely: (1) on a working writer, the bytes produced by `auto_finish().drop()` must equal the bytes produced by an explicit `let _ = enc.try_finish(); drop(enc);` pipeline and must roundtrip through `FrameDecoder` to recover the original input; (2) on a writer whose `write`/`flush` always errors, `auto_finish().drop()` must not panic (it must silently ignore the error)."
+how_triggered = "The buggy `Drop` impl pattern-matches `try_finish()`'s `Err(err)` arm and calls `panic!(\"Error when flushing frame on drop {err:?}\")`. The erroring-writer arm of the property hits this panic directly. The byte-equivalence + roundtrip arms additionally guarantee that no future Drop variant can pass by silently truncating the stream — they pin the documented model."
 
 [[tasks.tasks]]
-property = "DontPanicOnDrop"
+property = "DropMatchesManualFinish"
 witnesses = [
-  { test_fn = "witness_dont_panic_on_drop_case_small_payload" },
-  { test_fn = "witness_dont_panic_on_drop_case_empty_payload" },
-  { test_fn = "witness_dont_panic_on_drop_case_repeated_bytes" },
+  { test_fn = "witness_drop_matches_manual_finish_case_small_payload" },
+  { test_fn = "witness_drop_matches_manual_finish_case_empty_payload" },
+  { test_fn = "witness_drop_matches_manual_finish_case_repeated_bytes" },
 ]
 
 [[tasks]]

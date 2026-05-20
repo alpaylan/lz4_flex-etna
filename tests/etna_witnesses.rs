@@ -5,7 +5,7 @@
 //! fail when the corresponding mutation is active (marauders or patch).
 
 use lz4_flex::etna::{
-    property_decompress_short_input_no_panic, property_dont_panic_on_drop,
+    property_decompress_short_input_no_panic, property_drop_matches_manual_finish,
     property_small_dict_no_panic, PropertyResult,
 };
 
@@ -17,23 +17,23 @@ fn assert_pass(r: PropertyResult) {
     }
 }
 
-// ---- dont_panic_on_drop_44e14b1_1 ----
+// ---- dont_panic_on_drop_44e14b1_1 (rewritten as a model-based check) ----
 
 #[test]
-fn witness_dont_panic_on_drop_case_small_payload() {
+fn witness_drop_matches_manual_finish_case_small_payload() {
     let data = b"hello world".to_vec();
-    assert_pass(property_dont_panic_on_drop(data));
+    assert_pass(property_drop_matches_manual_finish(data));
 }
 
 #[test]
-fn witness_dont_panic_on_drop_case_empty_payload() {
-    assert_pass(property_dont_panic_on_drop(Vec::new()));
+fn witness_drop_matches_manual_finish_case_empty_payload() {
+    assert_pass(property_drop_matches_manual_finish(Vec::new()));
 }
 
 #[test]
-fn witness_dont_panic_on_drop_case_repeated_bytes() {
+fn witness_drop_matches_manual_finish_case_repeated_bytes() {
     let data = vec![0xABu8; 256];
-    assert_pass(property_dont_panic_on_drop(data));
+    assert_pass(property_drop_matches_manual_finish(data));
 }
 
 // ---- small_dict_no_panic_2d83a3d_1 ----

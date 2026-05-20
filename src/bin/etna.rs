@@ -2,7 +2,7 @@
 //
 // Usage: cargo run --release --bin etna -- <tool> <property>
 //   tool:     etna | proptest | quickcheck | crabcheck | hegel
-//   property: DontPanicOnDrop | SmallDictNoPanic | DecompressShortInputNoPanic | All
+//   property: DropMatchesManualFinish | SmallDictNoPanic | DecompressShortInputNoPanic | All
 //
 // Each invocation prints exactly one JSON line on stdout:
 //   {status, tests, discards, time, counterexample, error, tool, property}
@@ -11,7 +11,7 @@
 use crabcheck::quickcheck as crabcheck_qc;
 use hegel::{generators as hgen, HealthCheck, Hegel, Settings as HegelSettings, TestCase};
 use lz4_flex::etna::{
-    property_decompress_short_input_no_panic, property_dont_panic_on_drop,
+    property_decompress_short_input_no_panic, property_drop_matches_manual_finish,
     property_small_dict_no_panic, PropertyResult,
 };
 use proptest::prelude::*;
@@ -47,8 +47,11 @@ fn to_err(r: PropertyResult) -> Result<(), String> {
     }
 }
 
-const ALL_PROPERTIES: &[&str] =
-    &["DontPanicOnDrop", "SmallDictNoPanic", "DecompressShortInputNoPanic"];
+const ALL_PROPERTIES: &[&str] = &[
+    "DropMatchesManualFinish",
+    "SmallDictNoPanic",
+    "DecompressShortInputNoPanic",
+];
 
 fn run_all<F: FnMut(&str) -> Outcome>(mut f: F) -> Outcome {
     let mut total = Metrics::default();
@@ -132,7 +135,7 @@ fn run_etna_property(property: &str) -> Outcome {
     }
     let t0 = Instant::now();
     let result = match property {
-        "DontPanicOnDrop" => to_err(property_dont_panic_on_drop(b"hello world".to_vec())),
+        "DropMatchesManualFinish" => to_err(property_drop_matches_manual_finish(b"hello world".to_vec())),
         "SmallDictNoPanic" => to_err(property_small_dict_no_panic((
             vec![10u8, 12, 14, 16, 18, 10, 12, 14, 16, 18, 10, 12, 14, 16, 18, 10, 12, 14, 16, 18],
             vec![10u8, 12, 14],
@@ -185,12 +188,12 @@ fn run_proptest_property(property: &str) -> Outcome {
     let mut runner = TestRunner::new(ProptestConfig::default());
     let c = counter.clone();
     let result: Result<(), String> = match property {
-        "DontPanicOnDrop" => runner
+        "DropMatchesManualFinish" => runner
             .run(&bytes_strategy(), move |args| {
                 c.fetch_add(1, Ordering::Relaxed);
                 let cex = format!("({:?})", args);
                 let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
-                    property_dont_panic_on_drop(args.bytes.clone())
+                    property_drop_matches_manual_finish(args.bytes.clone())
                 }));
                 match res {
                     Ok(PropertyResult::Pass) | Ok(PropertyResult::Discard) => Ok(()),
@@ -302,8 +305,8 @@ where
     }
 }
 
-fn qc_dont_panic_on_drop(args: BytesInput) -> TestResult {
-    qc_run(move || property_dont_panic_on_drop(args.bytes))
+fn qc_drop_matches_manual_finish(args: BytesInput) -> TestResult {
+    qc_run(move || property_drop_matches_manual_finish(args.bytes))
 }
 
 fn qc_small_dict_no_panic(args: InputDictInput) -> TestResult {
@@ -321,11 +324,11 @@ fn run_quickcheck_property(property: &str) -> Outcome {
     QC_COUNTER.store(0, Ordering::Relaxed);
     let t0 = Instant::now();
     let result = match property {
-        "DontPanicOnDrop" => QuickCheck::new()
+        "DropMatchesManualFinish" => QuickCheck::new()
             .tests(200)
             .max_tests(2000)
             .max_time(Duration::from_secs(86_400))
-            .quicktest(qc_dont_panic_on_drop as fn(BytesInput) -> TestResult),
+            .quicktest(qc_drop_matches_manual_finish as fn(BytesInput) -> TestResult),
         "SmallDictNoPanic" => QuickCheck::new()
             .tests(200)
             .max_tests(2000)
@@ -406,9 +409,9 @@ impl<R: CcRng> CcArbitrary<R> for ShortBytesInput {
 
 static CC_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-fn cc_dont_panic_on_drop(v: BytesInput) -> Option<bool> {
+fn cc_drop_matches_manual_finish(v: BytesInput) -> Option<bool> {
     CC_COUNTER.fetch_add(1, Ordering::Relaxed);
-    match property_dont_panic_on_drop(v.bytes) {
+    match property_drop_matches_manual_finish(v.bytes) {
         PropertyResult::Pass => Some(true),
         PropertyResult::Fail(_) => Some(false),
         PropertyResult::Discard => None,
@@ -441,9 +444,9 @@ fn run_crabcheck_property(property: &str) -> Outcome {
     let t0 = Instant::now();
     let cfg = crabcheck_qc::Config { tests: 200 };
     let result = match property {
-        "DontPanicOnDrop" => crabcheck_qc::quickcheck_with_config(
+        "DropMatchesManualFinish" => crabcheck_qc::quickcheck_with_config(
             cfg,
-            cc_dont_panic_on_drop as fn(BytesInput) -> Option<bool>,
+            cc_drop_matches_manual_finish as fn(BytesInput) -> Option<bool>,
         ),
         "SmallDictNoPanic" => crabcheck_qc::quickcheck_with_config(
             cfg,
@@ -511,13 +514,13 @@ fn run_hegel_property(property: &str) -> Outcome {
     let t0 = Instant::now();
     let settings = hegel_settings();
     let run_result = std::panic::catch_unwind(AssertUnwindSafe(|| match property {
-        "DontPanicOnDrop" => {
+        "DropMatchesManualFinish" => {
             Hegel::new(|tc: TestCase| {
                 HG_COUNTER.fetch_add(1, Ordering::Relaxed);
                 let bytes = hg_draw_bytes(&tc, MAX_INPUT_LEN);
                 let cex = format!("({:?})", bytes);
                 let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
-                    property_dont_panic_on_drop(bytes.clone())
+                    property_drop_matches_manual_finish(bytes.clone())
                 }));
                 match res {
                     Ok(PropertyResult::Pass) | Ok(PropertyResult::Discard) => {}
@@ -651,7 +654,7 @@ fn main() {
         eprintln!("Usage: {} <tool> <property>", args[0]);
         eprintln!("Tools: etna | proptest | quickcheck | crabcheck | hegel");
         eprintln!(
-            "Properties: DontPanicOnDrop | SmallDictNoPanic | DecompressShortInputNoPanic | All"
+            "Properties: DropMatchesManualFinish | SmallDictNoPanic | DecompressShortInputNoPanic | All"
         );
         std::process::exit(2);
     }

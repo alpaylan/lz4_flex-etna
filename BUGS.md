@@ -9,7 +9,7 @@ Total mutations: 3
 | # | Variant | Name | Location | Injection | Fix Commit |
 |---|---------|------|----------|-----------|------------|
 | 1 | `decompress_short_input_no_panic_e0e7e5c_1` | `decompress_short_input_no_panic` | `src/block/decompress.rs:496` | `patch` | `e0e7e5c223441c7739c9a140c1e62db0399621ba` |
-| 2 | `dont_panic_on_drop_44e14b1_1` | `dont_panic_on_drop` | `src/frame/compress.rs:425` | `marauders` | `44e14b15e51daaf010a554be07ee60ea95522c8d` |
+| 2 | `dont_panic_on_drop_44e14b1_1` | `drop_matches_manual_finish` | `src/frame/compress.rs:425` | `marauders` | `44e14b15e51daaf010a554be07ee60ea95522c8d` |
 | 3 | `small_dict_no_panic_2d83a3d_1` | `small_dict_no_panic` | `src/block/compress.rs:626` | `patch` | `2d83a3da281266aeb2928272001043ecc04a8fe4` |
 
 ## Property Mapping
@@ -17,7 +17,7 @@ Total mutations: 3
 | Variant | Property | Witness(es) |
 |---------|----------|-------------|
 | `decompress_short_input_no_panic_e0e7e5c_1` | `DecompressShortInputNoPanic` | `witness_decompress_short_input_no_panic_case_empty`, `witness_decompress_short_input_no_panic_case_one_byte`, `witness_decompress_short_input_no_panic_case_three_bytes` |
-| `dont_panic_on_drop_44e14b1_1` | `DontPanicOnDrop` | `witness_dont_panic_on_drop_case_small_payload`, `witness_dont_panic_on_drop_case_empty_payload`, `witness_dont_panic_on_drop_case_repeated_bytes` |
+| `dont_panic_on_drop_44e14b1_1` | `DropMatchesManualFinish` | `witness_drop_matches_manual_finish_case_small_payload`, `witness_drop_matches_manual_finish_case_empty_payload`, `witness_drop_matches_manual_finish_case_repeated_bytes` |
 | `small_dict_no_panic_2d83a3d_1` | `SmallDictNoPanic` | `witness_small_dict_no_panic_case_three_byte_dict`, `witness_small_dict_no_panic_case_two_byte_dict`, `witness_small_dict_no_panic_case_one_byte_dict` |
 
 ## Framework Coverage
@@ -25,7 +25,7 @@ Total mutations: 3
 | Property | proptest | quickcheck | crabcheck | hegel |
 |----------|---------:|-----------:|----------:|------:|
 | `DecompressShortInputNoPanic` | ✓ | ✓ | ✓ | ✓ |
-| `DontPanicOnDrop` | ✓ | ✓ | ✓ | ✓ |
+| `DropMatchesManualFinish` | ✓ | ✓ | ✓ | ✓ |
 | `SmallDictNoPanic` | ✓ | ✓ | ✓ | ✓ |
 
 ## Bug Details
@@ -45,20 +45,20 @@ Total mutations: 3
 - **Invariant violated**: `decompress_size_prepended(input)` must return `Err(_)` (never panic) when `input.len() < 4`. The first 4 bytes are the prepended little-endian uncompressed length; a buffer shorter than that cannot encode a valid frame and must be reported as `ExpectedAnotherByte`.
 - **How the mutation triggers**: The buggy code reads `input[0]`, `input[1]`, `input[2]`, `input[3]` directly to decode the size, then slices `&input[4..]` for the body. With `input.len() < 4` the very first index out-of-bounds panics; with `input.len() == 4` only the slice survives but trivial cases like the empty input always abort.
 
-### 2. dont_panic_on_drop
+### 2. drop_matches_manual_finish
 
 - **Variant**: `dont_panic_on_drop_44e14b1_1`
 - **Location**: `src/frame/compress.rs:425` (inside `<AutoFinishEncoder as Drop>::drop`)
-- **Property**: `DontPanicOnDrop`
+- **Property**: `DropMatchesManualFinish`
 - **Witness(es)**:
-  - `witness_dont_panic_on_drop_case_small_payload`
-  - `witness_dont_panic_on_drop_case_empty_payload`
-  - `witness_dont_panic_on_drop_case_repeated_bytes`
+  - `witness_drop_matches_manual_finish_case_small_payload`
+  - `witness_drop_matches_manual_finish_case_empty_payload`
+  - `witness_drop_matches_manual_finish_case_repeated_bytes`
 - **Source**: [#98](https://github.com/PSeitz/lz4_flex/pull/98) — Don't panic on drop
   > `AutoFinishEncoder::drop` called `panic!` when its implicit `try_finish()` returned an error from the underlying writer. Dropping the encoder while a writer was failing therefore aborted the program — an unrecoverable surprise for callers who chose `auto_finish` precisely so they wouldn't have to handle finish errors. The fix swallows the result with `let _ = encoder.try_finish();`.
 - **Fix commit**: `44e14b15e51daaf010a554be07ee60ea95522c8d` — Don't panic on drop
-- **Invariant violated**: `AutoFinishEncoder<W>` dropped at end of scope must never panic, regardless of whether the underlying writer's `flush`/`write` returned an error during the implicit `try_finish()`.
-- **How the mutation triggers**: The buggy `Drop` impl pattern-matches `try_finish()`'s `Err(err)` arm and calls `panic!("Error when flushing frame on drop {err:?}")`. With a writer that returns `Err(io::ErrorKind::BrokenPipe)` the buggy drop unconditionally aborts the test thread; the fix discards the result so drop becomes total.
+- **Invariant violated**: `AutoFinishEncoder<W>::drop` is observationally equivalent to calling `try_finish()` directly and discarding the `Result`, as the upstream docstring on `FrameEncoder::auto_finish()` mandates ("Errors on drop get silently ignored"). Concretely: (1) on a working writer, the bytes produced by `auto_finish().drop()` must equal the bytes produced by an explicit `let _ = enc.try_finish(); drop(enc);` pipeline and must roundtrip through `FrameDecoder` to recover the original input; (2) on a writer whose `write`/`flush` always errors, `auto_finish().drop()` must not panic (it must silently ignore the error).
+- **How the mutation triggers**: The buggy `Drop` impl pattern-matches `try_finish()`'s `Err(err)` arm and calls `panic!("Error when flushing frame on drop {err:?}")`. The erroring-writer arm of the property hits this panic directly. The byte-equivalence + roundtrip arms additionally guarantee that no future Drop variant can pass by silently truncating the stream — they pin the documented model.
 
 ### 3. small_dict_no_panic
 
